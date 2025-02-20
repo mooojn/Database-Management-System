@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "iostream": "c",
+        "file_handler.h": "c",
+        "time.h": "c"
+    }
+}
