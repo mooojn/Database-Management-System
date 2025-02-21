@@ -13,7 +13,7 @@ static void handler(struct mg_connection *c, int ev, void *ev_data) {
                           "Access-Control-Allow-Origin: *\r\n"
                           "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
                           "Access-Control-Allow-Headers: Content-Type\r\n",
-                          "{\"message\": \"Hello from C backend!\"}");
+                          "{\"message\": \"Hello from cxs backend!\"}");
         }
         // Handle POST request
         else if (strncmp(hm->uri.buf, "/save", hm->uri.len) == 0) {
@@ -21,7 +21,7 @@ static void handler(struct mg_connection *c, int ev, void *ev_data) {
             snprintf(body, sizeof(body), "%.*s", (int) hm->body.len, hm->body.buf);
 
             // Save data to file
-            FILE *file = fopen("data.txt", "a"); // Open in append mode
+            FILE *file = fopen("./server/data/server.txt", "a"); // Open in append mode
             if (file) {
                 fprintf(file, "%s\n", body);
                 fclose(file);
@@ -44,6 +44,7 @@ static void handler(struct mg_connection *c, int ev, void *ev_data) {
 }
 
 int main() {
+    printf("Server is Running on 8000");
     struct mg_mgr mgr;
     mg_mgr_init(&mgr);
     mg_http_listen(&mgr, "http://localhost:8080", handler, &mgr);
