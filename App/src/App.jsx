@@ -6,13 +6,13 @@ function App() {
 
   useEffect(() => {
     fetch("http://localhost:8080")
-      .then((response) => response.json()) // Convert response to JSON
-      .then((data) => setRecMessage(data.message)) // Extract "message" field
+      .then((response) => response.json()) 
+      .then((data) => setRecMessage(data.message)) 
       .catch((error) => console.error("Error fetching data:", error));
   }, []);
 
   const sendDataToServer = async () => {
-    const data = { message }; // JSON object to send
+    const data = { message }; 
 
     const response = await fetch("http://localhost:8080/save", {
       method: "POST",
@@ -23,7 +23,7 @@ function App() {
     });
 
     const result = await response.json();
-    alert(result.message); // Show success or error message
+    alert(result.message); 
   };
 
   return (
