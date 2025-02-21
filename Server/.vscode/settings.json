@@ -2,6 +2,7 @@
     "files.associations": {
         "iostream": "c",
         "file_handler.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "stat.h": "c"
     }
 }

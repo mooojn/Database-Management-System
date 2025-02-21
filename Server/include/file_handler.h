@@ -4,7 +4,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void writeToFile(const char* filename, const char* data);
-char* readFromFile(const char* filename, size_t threshold);
-void searchInFile(const char* filename, const char* keyword);
+#include <fcntl.h>
+
+#include <time.h>
+
+typedef struct {
+    int id;
+    char name[20];
+    float value;
+} Record;
+
+void writeBinaryFile(const char* filename, int numRecords);
+void readBinaryFile(const char* filename);
+void createIndexFile(const char* dataFile, const char* indexFile);
+long searchRecord(const char* dataFile, const char* indexFile, int recordID);
+
 #endif
