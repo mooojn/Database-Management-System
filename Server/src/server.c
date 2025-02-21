@@ -1,4 +1,4 @@
-#include "mongoose-master/mongoose.h"
+#include "mongoose.h"
 #include <stdio.h>
 #include <string.h>
 
