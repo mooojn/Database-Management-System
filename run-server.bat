@@ -1,0 +1,1 @@
+.\Server\bin\server.exe
