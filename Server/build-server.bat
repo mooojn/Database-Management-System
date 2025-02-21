@@ -1,0 +1,1 @@
+gcc -o ./bin/server.exe server.c mongoose.c -lws2_32 -D_CRT_RAND_S

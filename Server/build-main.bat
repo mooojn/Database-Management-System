@@ -1,0 +1,1 @@
+gcc -o ./bin/main.exe src/main.c src/file_handler.c -Isrc/core
