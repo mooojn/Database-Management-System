@@ -1,18 +1,36 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <time.h>
+#define TOTAL_RECORDS 1000000  // 1 million records
 
 typedef struct {
     int id;
     float score;
 } Record;
 
-#define TOTAL_RECORDS 1000000  // 1 million records
+void writeBinaryFile(int n) {
+    FILE *file = fopen("./data/data.bin", "wb");
+    Record r;
+    for (int i = 0; i < n; i++) {
+        r.id = i;
+        r.score = i * 1.5;
+        fwrite(&r, sizeof(Record), 1, file);
+    }
+    fclose(file);
+}
+
+void writeCSVFile(int n) {
+    FILE *file = fopen("./data/data.csv", "w");
+    for (int i = 0; i < n; i++) {
+        fprintf(file, "%d,%.2f\n", i, i * 1.5);
+    }
+    fclose(file);
+}
+
+
 
 // Function to search in binary file
 void searchBinaryFile(int search_id) {
-    FILE *file = fopen("data.bin", "rb");
+    FILE *file = fopen("./data/data.bin", "rb");
     if (!file) {
         printf("Error opening binary file!\n");
         return;
@@ -36,7 +54,7 @@ void searchBinaryFile(int search_id) {
 
 // Function to search in CSV file
 void searchCSVFile(int search_id) {
-    FILE *file = fopen("data.csv", "r");
+    FILE *file = fopen("./data/data.csv", "r");
     if (!file) {
         printf("Error opening CSV file!\n");
         return;
@@ -61,12 +79,25 @@ void searchCSVFile(int search_id) {
     fclose(file);
     printf("CSV Search: ID not found!\n");
 }
+void writeF() {
+    clock_t start, end;
 
-int main() {
+    start = clock();
+    writeBinaryFile(TOTAL_RECORDS);
+    end = clock();
+    printf("Binary Write Time: %lf seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
+
+    start = clock();
+    writeCSVFile(TOTAL_RECORDS);
+    end = clock();
+    printf("CSV Write Time: %lf seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
+}
+
+void readF() {
     int search_id = 900000;  // Change this to test different IDs
 
     searchBinaryFile(search_id);
     searchCSVFile(search_id);
 
-    return 0;
 }
+
