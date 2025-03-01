@@ -7,3 +7,4 @@ Operand1,Operator,Operand2,Result
 10,sub,4,6.00
 6,mul,2,12.00
 8,div,2,4.00
+10,sub,4,6.00
