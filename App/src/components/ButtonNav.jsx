@@ -36,14 +36,14 @@ function ButtonNav() {
             alert("Start a transaction first!");
             return;
         }
-        
+
         try {
             // Perform multiple operations
             await performOperation("add", 5, 3);
             await performOperation("sub", 10, 4);
             await performOperation("mul", 6, 2);
             await performOperation("div", 8, 2);
-    
+
             // Commit transaction
             await commitTransaction();
             alert("All transactions executed and committed.");
@@ -52,7 +52,7 @@ function ButtonNav() {
             alert("Error executing all transactions.");
         }
     };
-    
+
     const handleClick = async (val) => {
         if (val === "Start Transaction") {
             try {
@@ -88,6 +88,27 @@ function ButtonNav() {
             alert("Error performing operation");
         }
     };
+    const rollbackTransaction = async () => {
+        if (!transactionActive) {
+            alert("No active transaction to rollback.");
+            return;
+        }
+
+        try {
+            const response = await fetch("http://localhost:8080/rollback", { method: "GET" });
+
+            if (response.ok) {
+                setTransactionActive(false);
+                alert("Transaction rolled back. No changes saved.");
+            } else {
+                const errorText = await response.text();
+                alert("Failed to rollback transaction: " + errorText);
+            }
+        } catch (error) {
+            console.error("Error rolling back transaction:", error);
+            alert("Error rolling back transaction");
+        }
+    };
 
     const commitTransaction = async () => {
         if (!transactionActive) {
@@ -119,12 +140,16 @@ function ButtonNav() {
                 <div>
                     <button onClick={() => performOperation("add", 5, 3)}>Add 5 + 3</button>
                     <button onClick={() => performOperation("sub", 10, 4)}>Subtract 10 - 4</button>
-                    <button onClick={() => performOperation("mul", 2, 15)}>Subtract 2 * 15</button>
-                    <button onClick={() => performOperation("div", 10, 2)}>Subtract 10 / 2</button>
+                    <button onClick={() => performOperation("mul", 2, 15)}>Multiply 2 * 15</button>
+                    <button onClick={() => performOperation("div", 10, 2)}>Divide 10 / 2</button>
 
                     <button onClick={commitTransaction} style={{ backgroundColor: "green", color: "white" }}>
                         Commit Transaction
                     </button>
+                    <button onClick={rollbackTransaction} style={{ backgroundColor: "orange", color: "white" }}>
+                        Rollback Transaction
+                    </button>
+
                     <button onClick={cancelTransaction} style={{ backgroundColor: "red", color: "white" }}>
                         Cancel Transaction
                     </button>

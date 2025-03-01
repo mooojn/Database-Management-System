@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"sync"
 )
+var tempResults [][]string // Temporary store for rollback
 
 // CORS Middleware
 func enableCORS(next http.Handler) http.Handler {
@@ -46,15 +47,17 @@ func startTransaction(w http.ResponseWriter, r *http.Request) {
 	defer transactionMutex.Unlock()
 
 	if transactionActive {
-		jsonResponse(w, http.StatusConflict, "Transaction already active")
+		http.Error(w, "Transaction already active", http.StatusConflict)
 		return
 	}
 
 	transactionActive = true
-	results = [][]string{} // Reset results
+	tempResults = append([][]string{}, results...) // Save previous state
+	results = [][]string{} // Start fresh transaction
 	fmt.Println("Transaction started")
-	jsonResponse(w, http.StatusOK, "Transaction started")
+	fmt.Fprintln(w, "Transaction started")
 }
+
 
 // Perform Arithmetic Operation
 func performOperation(w http.ResponseWriter, r *http.Request) {
@@ -149,6 +152,24 @@ func commitTransaction(w http.ResponseWriter, r *http.Request) {
 
 	jsonResponse(w, http.StatusOK, "Transaction committed and saved to CSV")
 }
+// Rollback Transaction (Discard Operations)
+func rollbackTransaction(w http.ResponseWriter, r *http.Request) {
+	transactionMutex.Lock()
+	defer transactionMutex.Unlock()
+
+	if !transactionActive {
+		http.Error(w, "No active transaction", http.StatusBadRequest)
+		return
+	}
+
+	// Discard changes by resetting tempResults
+	results = tempResults
+
+	transactionActive = false
+	fmt.Println("Transaction rolled back. Changes discarded.")
+	fmt.Fprintln(w, "Transaction rolled back. No changes saved.")
+}
+
 // Cancel Transaction (Discard changes)
 func cancelTransaction(w http.ResponseWriter, r *http.Request) {
 	transactionMutex.Lock()
@@ -173,6 +194,7 @@ func main() {
 	mux.HandleFunc("/operate", performOperation)
 	mux.HandleFunc("/commit", commitTransaction)
     mux.HandleFunc("/cancel", cancelTransaction)
+	mux.HandleFunc("/rollback", rollbackTransaction)
 
 
 	// Wrap handlers with CORS middleware
