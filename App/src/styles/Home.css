@@ -1,0 +1,17 @@
+.main-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 10px;
+    height: 100vh; 
+}
+
+.sideNav {
+    flex-shrink: 0; 
+}
+
+.buttonNav {
+    flex-shrink: 0; 
+    max-width: 300px;
+    margin-left: auto;
+}
