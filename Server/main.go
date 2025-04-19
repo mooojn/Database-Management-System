@@ -1,205 +1,159 @@
 package main
 
 import (
-	"encoding/csv"
-	"encoding/json"
+	 "encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
-	"sync"
-)
-var tempResults [][]string // Temporary store for rollback
-
-// CORS Middleware
-func enableCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-// Global Variables
-var (
-	transactionActive = false
-	transactionMutex  sync.Mutex
-	results           [][]string // Store structured data (Operand1, Operator, Operand2, Result)
+	"server/go-src" // Import your package where the database functions are located
+	"github.com/rs/cors"
 )
 
-// JSON Response Helper
-func jsonResponse(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"message": message})
-}
-
-// Start Transaction
-func startTransaction(w http.ResponseWriter, r *http.Request) {
-	transactionMutex.Lock()
-	defer transactionMutex.Unlock()
-
-	if transactionActive {
-		http.Error(w, "Transaction already active", http.StatusConflict)
+// Function to create a database using go_src package
+func createDB(w http.ResponseWriter, r *http.Request) {
+	// Extract dbName from query parameters
+	dbName := r.URL.Query().Get("dbName")
+	if dbName == "" {
+		http.Error(w, "dbName is required", http.StatusBadRequest)
 		return
 	}
 
-	transactionActive = true
-	tempResults = append([][]string{}, results...) // Save previous state
-	results = [][]string{} // Start fresh transaction
-	fmt.Println("Transaction started")
-	fmt.Fprintln(w, "Transaction started")
-}
-
-
-// Perform Arithmetic Operation
-func performOperation(w http.ResponseWriter, r *http.Request) {
-	transactionMutex.Lock()
-	defer transactionMutex.Unlock()
-
-	if !transactionActive {
-		jsonResponse(w, http.StatusBadRequest, "No active transaction")
-		return
-	}
-
-	op := r.URL.Query().Get("operation") // add, sub, mul, div
-	a, err1 := strconv.Atoi(r.URL.Query().Get("a"))
-	b, err2 := strconv.Atoi(r.URL.Query().Get("b"))
-
-	if err1 != nil || err2 != nil {
-		jsonResponse(w, http.StatusBadRequest, "Invalid numbers")
-		return
-	}
-
-	var result float64
-	switch op {
-	case "add":
-		result = float64(a + b)
-	case "sub":
-		result = float64(a - b)
-	case "mul":
-		result = float64(a * b)
-	case "div":
-		if b == 0 {
-			jsonResponse(w, http.StatusBadRequest, "Cannot divide by zero")
-			return
-		}
-		result = float64(a) / float64(b)
-	default:
-		jsonResponse(w, http.StatusBadRequest, "Invalid operation")
-		return
-	}
-
-	// Store structured result
-	results = append(results, []string{strconv.Itoa(a), op, strconv.Itoa(b), fmt.Sprintf("%.2f", result)})
-
-	fmt.Printf("Operation performed: %d %s %d = %.2f\n", a, op, b, result)
-	jsonResponse(w, http.StatusOK, fmt.Sprintf("Result: %.2f", result))
-}
-
-// Commit Transaction (Save to CSV)
-func commitTransaction(w http.ResponseWriter, r *http.Request) {
-	transactionMutex.Lock()
-	defer transactionMutex.Unlock()
-
-	if !transactionActive {
-		jsonResponse(w, http.StatusBadRequest, "No active transaction")
-		return
-	}
-
-	fmt.Println("Committing transaction...")
-
-	// Open CSV file (append mode)
-	file, err := os.OpenFile("transactions.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// Call the CreateDatabase function from go_src
+	err := go_src.CreateDatabase(dbName)
 	if err != nil {
-		jsonResponse(w, http.StatusInternalServerError, "Failed to open file")
-		return
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	// If file is empty, write headers
-	fileInfo, _ := file.Stat()
-	if fileInfo.Size() == 0 {
-		if err := writer.Write([]string{"Operand1", "Operator", "Operand2", "Result"}); err != nil {
-			jsonResponse(w, http.StatusInternalServerError, "Failed to write CSV header")
-			return
-		}
-	}
-
-	// Write transactions to CSV
-	for _, entry := range results {
-		if err := writer.Write(entry); err != nil {
-			jsonResponse(w, http.StatusInternalServerError, "Failed to write to CSV")
-			return
-		}
-	}
-
-	fmt.Println("Transaction committed and saved to CSV")
-
-	// Reset transaction
-	transactionActive = false
-	results = [][]string{}
-
-	jsonResponse(w, http.StatusOK, "Transaction committed and saved to CSV")
-}
-// Rollback Transaction (Discard Operations)
-func rollbackTransaction(w http.ResponseWriter, r *http.Request) {
-	transactionMutex.Lock()
-	defer transactionMutex.Unlock()
-
-	if !transactionActive {
-		http.Error(w, "No active transaction", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Error creating database: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Discard changes by resetting tempResults
-	results = tempResults
-
-	transactionActive = false
-	fmt.Println("Transaction rolled back. Changes discarded.")
-	fmt.Fprintln(w, "Transaction rolled back. No changes saved.")
+	// Respond with a success message
+	log.Printf("Database %s created successfully\n", dbName)
+	w.Write([]byte(fmt.Sprintf("Database %s created successfully", dbName)))
 }
 
-// Cancel Transaction (Discard changes)
-func cancelTransaction(w http.ResponseWriter, r *http.Request) {
-	transactionMutex.Lock()
-	defer transactionMutex.Unlock()
+// Function to create a table in an existing database using the go_src/table.go package
+func createTable(w http.ResponseWriter, r *http.Request) {
+    // Extract dbName and tableName from query parameters
+    dbName := r.URL.Query().Get("dbName")
+    tableName := r.URL.Query().Get("tableName")
+    columns := r.URL.Query()["columns"] 
+    if dbName == "" || tableName == "" || len(columns) == 0 {
+        http.Error(w, "dbName, tableName, and columns are required", http.StatusBadRequest)
+        return
+    }
 
-	if !transactionActive {
-		http.Error(w, "No active transaction", http.StatusBadRequest)
+    // Call CreateTable from the go_src/table.go package
+    err := go_src.CreateTable(tableName, columns)
+    if err != nil {
+        http.Error(w, fmt.Sprintf("Error creating table: %v", err), http.StatusInternalServerError)
+        return
+    }
+
+    // Respond with a success message
+    log.Printf("Table %s created in database %s with columns %v\n", tableName, dbName, columns)
+    w.Write([]byte(fmt.Sprintf("Table %s created in database %s with columns %v", tableName, dbName, columns)))
+}
+
+
+// Function to read the list of existing databases
+func readDatabases(w http.ResponseWriter, r *http.Request) {
+	// Call the ReadDatabases function from go_src
+	dbs, err := go_src.ReadDatabases()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error reading databases: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	transactionActive = false
-	results = [][]string{} // Clear stored results
-
-	fmt.Println("Transaction cancelled")
-	fmt.Fprintln(w, "Transaction cancelled")
+	// Respond with the list of databases
+	w.Write([]byte(fmt.Sprintf("Databases: %v", dbs)))
 }
 
+// Function to update (rename) an existing database
+func updateDatabase(w http.ResponseWriter, r *http.Request) {
+	// Extract old and new database names from query parameters
+	oldName := r.URL.Query().Get("oldName")
+	newName := r.URL.Query().Get("newName")
+
+	if oldName == "" || newName == "" {
+		http.Error(w, "Both oldName and newName are required", http.StatusBadRequest)
+		return
+	}
+
+	// Call the UpdateDatabase function from go_src
+	err := go_src.UpdateDatabase(oldName, newName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error updating database: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with a success message
+	w.Write([]byte(fmt.Sprintf("Database renamed from %s to %s", oldName, newName)))
+}
+
+// Function to delete a database
+func deleteDatabase(w http.ResponseWriter, r *http.Request) {
+	// Extract dbName from query parameters
+	dbName := r.URL.Query().Get("dbName")
+	if dbName == "" {
+		http.Error(w, "dbName is required", http.StatusBadRequest)
+		return
+	}
+
+	// Call the DeleteDatabase function from go_src
+	err := go_src.DeleteDatabase(dbName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error deleting database: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with a success message
+	w.Write([]byte(fmt.Sprintf("Database %s deleted successfully", dbName)))
+}
+func handleLoadDatabase(w http.ResponseWriter, r *http.Request) {
+	// Enable CORS
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
+	err := go_src.LoadFromDB()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error loading database: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	log.Println("Loaded table data:")
+	for name, table := range go_src.Tables {
+		log.Printf("Table Name: %s\n", name)
+		log.Printf("Columns: %v\n", table.Columns)
+	}
+	
+
+	// Encode the exported go_src.Tables
+	if err := json.NewEncoder(w).Encode(go_src.Tables); err != nil {
+		http.Error(w, fmt.Sprintf("Error encoding JSON: %v", err), http.StatusInternalServerError)
+	}
+}
 
 func main() {
+	// Set up CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"http://localhost:5173"}, // Allow frontend from localhost:3000
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders: []string{"Content-Type", "Authorization"},
+	})
+
+	// Create the default HTTP mux (router)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/start", startTransaction)
-	mux.HandleFunc("/operate", performOperation)
-	mux.HandleFunc("/commit", commitTransaction)
-    mux.HandleFunc("/cancel", cancelTransaction)
-	mux.HandleFunc("/rollback", rollbackTransaction)
 
+	// Define your routes
+	mux.HandleFunc("/create_db", createDB)
+	mux.HandleFunc("/create_table", createTable)
+	mux.HandleFunc("/read_databases", readDatabases)
+	mux.HandleFunc("/update_db", updateDatabase)
+	mux.HandleFunc("/delete_db", deleteDatabase)
+	mux.HandleFunc("/load-database", handleLoadDatabase)
+	// Wrap the mux with the CORS handler
+	handler := c.Handler(mux)
 
-	// Wrap handlers with CORS middleware
-	handler := enableCORS(mux)
-
-	log.Println("Server running on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", handler))
+	// Start the server
+	log.Println("Server is running on port 8080...")
+	log.Fatal(http.ListenAndServe(":8080", handler)) // Use the CORS handler
 }
