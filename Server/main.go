@@ -69,25 +69,36 @@ func readDatabases(w http.ResponseWriter, r *http.Request) {
 
 // Function to update (rename) an existing database
 func updateDatabase(w http.ResponseWriter, r *http.Request) {
-	// Extract old and new database names from query parameters
-	oldName := r.URL.Query().Get("oldName")
-	newName := r.URL.Query().Get("newName")
+	log.Printf("Table")
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
 
-	if oldName == "" || newName == "" {
+	var payload struct {
+		OldName string `json:"oldName"`
+		NewName string `json:"newName"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if payload.OldName == "" || payload.NewName == "" {
 		http.Error(w, "Both oldName and newName are required", http.StatusBadRequest)
 		return
 	}
 
-	// Call the UpdateDatabase function from go_src
-	err := go_src.UpdateDatabase(oldName, newName)
+	err := go_src.UpdateDatabase(payload.OldName, payload.NewName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error updating database: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Respond with a success message
-	w.Write([]byte(fmt.Sprintf("Database renamed from %s to %s", oldName, newName)))
+	w.Write([]byte(fmt.Sprintf("Database renamed from %s to %s", payload.OldName, payload.NewName)))
 }
+
 
 // Function to delete a database
 func deleteDatabase(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +158,7 @@ func main() {
 	mux.HandleFunc("/create_db", createDB)
 	mux.HandleFunc("/create_table", createTable)
 	mux.HandleFunc("/read_databases", readDatabases)
-	mux.HandleFunc("/update_db", updateDatabase)
+	mux.HandleFunc("/modify_db", updateDatabase)
 	mux.HandleFunc("/delete_db", deleteDatabase)
 	mux.HandleFunc("/load-database", handleLoadDatabase)
 	// Wrap the mux with the CORS handler
